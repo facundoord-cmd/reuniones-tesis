@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reuniones de equipo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e4e2dc;
+    --border2: #ccc9bf;
+    --text: #1a1916;
+    --muted: #7a7870;
+    --accent: #2563eb;
+    --accent-bg: #eff4ff;
+    --success: #16a34a;
+    --success-bg: #f0fdf4;
+    --warn: #ca8a04;
+    --warn-bg: #fefce8;
+    --danger: #dc2626;
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  /* ---- AUTH SCREEN ---- */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    gap: 2rem;
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+  }
+  .auth-logo {
+    width: 48px; height: 48px;
+    background: var(--text);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    color: var(--bg);
+  }
+  .auth-title { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .auth-sub { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 2rem; }
+  .google-signin-btn {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 12px 20px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); cursor: pointer; font-size: 15px;
+    font-family: 'DM Sans', sans-serif; font-weight: 500;
+    color: var(--text); transition: background .15s, border-color .15s;
+  }
+  .google-signin-btn:hover { background: var(--bg); border-color: var(--border2); }
+  .auth-note { font-size: 12px; color: var(--muted); margin-top: 1.5rem; line-height: 1.6; }
+  #auth-error { font-size: 13px; color: var(--danger); margin-top: 12px; display: none; }
+
+  /* ---- ACCESS DENIED ---- */
+  #denied-screen {
+    display: none; min-height: 100vh;
+    flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem; text-align: center; gap: 1rem;
+  }
+  #denied-screen h2 { font-size: 18px; font-weight: 500; }
+  #denied-screen p { font-size: 14px; color: var(--muted); }
+  .signout-link { font-size: 14px; color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+  /* ---- MAIN APP ---- */
+  #app { display: none; min-height: 100vh; }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.25rem;
+    height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .topbar-logo {
+    width: 28px; height: 28px; background: var(--text); border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--bg);
+  }
+  .topbar-title { font-size: 15px; font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  .notif-wrap { position: relative; }
+  .notif-btn {
+    width: 36px; height: 36px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: none; cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .notif-btn:hover { background: var(--bg); }
+  .notif-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: var(--accent); color: #fff; font-size: 9px; font-weight: 500;
+    border-radius: 50%; width: 15px; height: 15px;
+    display: none; align-items: center; justify-content: center;
+  }
+  .notif-panel {
+    display: none; position: absolute; right: 0; top: calc(100% + 8px);
+    width: 290px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden; z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  }
+  .notif-panel.open { display: block; }
+  .notif-hdr {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    font-size: 13px; font-weight: 500;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .notif-clear { font-size: 11px; color: var(--accent); cursor: pointer; font-weight: 400; }
+  .notif-list { max-height: 240px; overflow-y: auto; }
+  .notif-item { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.5; }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item.unread { background: var(--accent-bg); }
+  .notif-t { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+  .notif-empty { padding: 20px 14px; font-size: 13px; color: var(--muted); text-align: center; }
+
+  .user-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border); border-radius: 40px;
+    font-size: 13px; cursor: default;
+  }
+  .chip-avatar {
+    width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+  }
+  .chip-avatar-text {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--text); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500;
+  }
+  .signout-btn {
+    padding: 6px 12px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: none; color: var(--muted); cursor: pointer; transition: border-color .15s;
+  }
+  .signout-btn:hover { border-color: var(--border2); color: var(--text); }
+
+  /* ---- TABS ---- */
+  .tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 1.25rem;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 14px; font-size: 14px; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; white-space: nowrap; transition: color .15s;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+  /* ---- CONTENT ---- */
+  .content { padding: 1.25rem; max-width: 680px; margin: 0 auto; }
+
+  /* ---- CALENDAR ---- */
+  .month-nav {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;
+  }
+  .month-label { font-size: 15px; font-weight: 500; }
+  .nav-btn {
+    width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px;
+    background: none; cursor: pointer; font-size: 16px; color: var(--text);
+    transition: background .15s;
+  }
+  .nav-btn:hover { background: var(--bg); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-day-hdr { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 0; font-weight: 500; }
+  .cal-day {
+    aspect-ratio: 1; border: 1px solid var(--border); border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: 4px 2px; cursor: pointer; transition: border-color .1s, background .1s;
+    font-size: 11px;
+  }
+  .cal-day:hover:not(.empty) { border-color: var(--border2); background: var(--bg); }
+  .cal-day.empty { opacity: 0; pointer-events: none; }
+  .cal-day.today { border-color: var(--accent); }
+  .cal-day.has-meeting { border-color: var(--success); }
+  .cal-day.selected { background: var(--accent-bg); border-color: var(--accent); }
+  .day-num { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+  .dot-row { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .cal-hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+  /* ---- AVAILABILITY ---- */
+  .section-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .section-sub { font-size: 13px; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.5; }
+  .day-block { margin-bottom: 1.25rem; }
+  .day-block-label { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+  .slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 4px; }
+  .time-slot {
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 10px; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: background .1s, border-color .1s; font-family: 'DM Mono', monospace;
+  }
+  .time-slot:hover { border-color: var(--border2); }
+  .time-slot.sel { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+  .slot-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--border); flex-shrink: 0; }
+  .time-slot.sel .slot-dot { background: var(--accent); border-color: var(--accent); }
+  .save-btn {
+    margin-top: 1.25rem; padding: 11px 28px;
+    background: var(--text); color: var(--bg);
+    border: none; border-radius: var(--radius); cursor: pointer;
+    font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    transition: opacity .15s; width: 100%;
+  }
+  .save-btn:hover { opacity: .85; }
+  .save-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .saved-msg { font-size: 13px; color: var(--success); margin-top: 10px; display: none; text-align: center; }
+
+  /* ---- RESUMEN ---- */
+  .resumen-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 10px;
+  }
+  .resumen-card-title { font-size: 13px; font-weight: 500; margin-bottom: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+  .slot-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .slot-time { font-size: 13px; font-weight: 500; min-width: 55px; font-family: 'DM Mono', monospace; }
+  .avatars { display: flex; gap: 3px; }
+  .av {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 500;
+  }
+  .badge-all { font-size: 11px; padding: 2px 8px; border-radius: 40px; background: var(--success-bg); color: var(--success); font-weight: 500; }
+  .agenda-btn {
+    margin-left: auto; font-size: 12px; padding: 4px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; background: none; color: var(--text);
+    font-family: 'DM Sans', sans-serif; transition: background .15s;
+  }
+  .agenda-btn:hover { background: var(--bg); }
+  .agenda-btn.booked { background: var(--success-bg); border-color: var(--success); color: var(--success); cursor: default; }
+  .empty-state { font-size: 14px; color: var(--muted); padding: 2rem 0; text-align: center; line-height: 1.7; }
+
+  /* ---- MEETINGS ---- */
+  .meeting-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 10px;
+    border-left: 3px solid var(--accent);
+  }
+  .meeting-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .meeting-title { font-size: 14px; font-weight: 500; }
+  .meeting-meta { font-size: 12px; color: var(--muted); margin-top: 3px; font-family: 'DM Mono', monospace; }
+  .meeting-attendees { display: flex; gap: 4px; margin: 8px 0; flex-wrap: wrap; }
+  .attendee-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 10px 3px 4px;
+    border: 1px solid var(--border); border-radius: 40px; font-size: 12px;
+  }
+  .reminder-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .reminder-label { font-size: 12px; color: var(--muted); }
+  .reminder-select {
+    font-size: 12px; padding: 4px 8px;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--bg); color: var(--text); cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .cancel-btn {
+    font-size: 12px; padding: 4px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; background: none; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; transition: color .15s, border-color .15s;
+  }
+  .cancel-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* ---- LOADING ---- */
+  #loading {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; flex-direction: column; gap: 12px;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 2px solid var(--border);
+    border-top-color: var(--text); border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p { font-size: 14px; color: var(--muted); }
+
+  @media (max-width: 480px) {
+    .content { padding: 1rem; }
+    .topbar { padding: 0 1rem; }
+    .tabs { padding: 0 1rem; }
+    .tab { padding: 10px 10px; font-size: 13px; }
+    .slots-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Cargando...</p>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">rn</div>
+    <p class="auth-title">Reuniones de equipo</p>
+    <p class="auth-sub">Coordiná horarios con tu equipo de forma simple. Solo los miembros autorizados pueden acceder.</p>
+    <button class="google-signin-btn" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Continuar con Google
+    </button>
+    <p id="auth-error">No tenés acceso. Pedile al administrador que te agregue.</p>
+    <p class="auth-note">Solo las 3 personas del equipo pueden iniciar sesión. Funciona en celular y computadora.</p>
+  </div>
+</div>
+
+<!-- DENIED -->
+<div id="denied-screen">
+  <h2>Acceso denegado</h2>
+  <p>Tu cuenta de Google no está autorizada para usar esta aplicación.</p>
+  <span class="signout-link" onclick="signOut()">Cerrar sesión e intentar con otra cuenta</span>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">rn</div>
+      <span class="topbar-title">Reuniones</span>
+    </div>
+    <div class="topbar-right">
+      <div class="notif-wrap">
+        <button class="notif-btn" onclick="toggleNotif()" id="notif-btn">🔔
+          <span class="notif-badge" id="notif-badge"></span>
+        </button>
+        <div class="notif-panel" id="notif-panel">
+          <div class="notif-hdr">Notificaciones <span class="notif-clear" onclick="clearNotifs()">Limpiar todo</span></div>
+          <div class="notif-list" id="notif-list"></div>
+        </div>
+      </div>
+      <div class="user-chip">
+        <img class="chip-avatar" id="chip-photo" src="" style="display:none">
+        <div class="chip-avatar-text" id="chip-initials"></div>
+        <span id="chip-name"></span>
+      </div>
+      <button class="signout-btn" onclick="signOut()">Salir</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('calendario',this)">Calendario</div>
+    <div class="tab" onclick="switchTab('disponibilidad',this)">Mi disponibilidad</div>
+    <div class="tab" onclick="switchTab('resumen',this)">Horarios comunes</div>
+    <div class="tab" onclick="switchTab('reuniones',this)">Mis reuniones</div>
+  </div>
+
+  <div class="content">
+    <div id="tab-calendario">
+      <div class="month-nav">
+        <button class="nav-btn" onclick="changeMonth(-1)">&#8592;</button>
+        <span class="month-label" id="month-label"></span>
+        <button class="nav-btn" onclick="changeMonth(1)">&#8594;</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <p class="cal-hint">Puntos = disponibilidad. Borde verde = reunión agendada.</p>
+    </div>
+
+    <div id="tab-disponibilidad" style="display:none">
+      <p class="section-title" id="avail-title">Mi disponibilidad</p>
+      <p class="section-sub">Marcá los horarios en que podés reunirte. Se guardan automáticamente.</p>
+      <div id="slots-container"></div>
+      <button class="save-btn" id="save-btn" onclick="saveAvailability()">Guardar disponibilidad</button>
+      <p class="saved-msg" id="saved-msg">✓ Guardado correctamente</p>
+    </div>
+
+    <div id="tab-resumen" style="display:none">
+      <div id="resumen-content"></div>
+    </div>
+
+    <div id="tab-reuniones" style="display:none">
+      <div id="reuniones-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, addDoc, deleteDoc, updateDoc, query, where }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ─── CONFIGURACIÓN FIREBASE ─────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBkbC2sBkzWoKfEB8ez4WGxXcPgr7dTyWw",
+  authDomain: "reuniones-equipo.firebaseapp.com",
+  projectId: "reuniones-equipo",
+  storageBucket: "reuniones-equipo.firebasestorage.app",
+  messagingSenderId: "1056873280545",
+  appId: "1:1056873280545:web:51c79e0b46a1f529c71f60"
+};
+
+// ─── EMAILS AUTORIZADOS — cambiá estos por los reales ───────────────────────
+const ALLOWED_EMAILS = [
+  "chrismirabellarq@gmail.com",
+  "barbiisarmiento@gmail.com",
+  "facundo.ord@gmail.com"
+];
+
+// ────────────────────────────────────────────────────────────────────────────
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
+const DAYS_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+let currentUser = null;
+let allAvailability = {};
+let meetings = [];
+let notifications = [];
+let notifOpen = false;
+let viewMonth = new Date(); viewMonth.setDate(1);
+let unsubAvail = null;
+let unsubMeetings = null;
+
+function dateKey(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function todayStr(){ const t=new Date(); return dateKey(t.getFullYear(),t.getMonth(),t.getDate()); }
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+window.signInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  try {
+    await signInWithPopup(auth, provider);
+  } catch(e) {
+    document.getElementById('auth-error').style.display = 'block';
+  }
+};
+
+window.signOut = () => fbSignOut(auth);
+
+onAuthStateChanged(auth, async user => {
+  document.getElementById('loading').style.display = 'none';
+  if (!user) {
+    showScreen('auth');
+    if (unsubAvail) { unsubAvail(); unsubAvail=null; }
+    if (unsubMeetings) { unsubMeetings(); unsubMeetings=null; }
+    currentUser = null;
+    return;
+  }
+  if (!ALLOWED_EMAILS.includes(user.email)) {
+    showScreen('denied');
+    return;
+  }
+  currentUser = user;
+  setupUserChip(user);
+  showScreen('app');
+  listenToData();
+});
+
+function showScreen(name) {
+  document.getElementById('auth-screen').style.display = name==='auth' ? 'flex' : 'none';
+  document.getElementById('denied-screen').style.display = name==='denied' ? 'flex' : 'none';
+  document.getElementById('app').style.display = name==='app' ? 'block' : 'none';
+}
+
+function setupUserChip(user) {
+  document.getElementById('chip-name').textContent = user.displayName?.split(' ')[0] || 'Usuario';
+  if (user.photoURL) {
+    const img = document.getElementById('chip-photo');
+    img.src = user.photoURL; img.style.display = 'block';
+    document.getElementById('chip-initials').style.display = 'none';
+  } else {
+    const initials = (user.displayName||'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('chip-initials').textContent = initials;
+    document.getElementById('chip-photo').style.display = 'none';
+  }
+}
+
+// ─── REALTIME DATA ────────────────────────────────────────────────────────────
+function listenToData() {
+  // Listen to all availability
+  if (unsubAvail) unsubAvail();
+  unsubAvail = onSnapshot(collection(db, 'availability'), snap => {
+    allAvailability = {};
+    snap.forEach(d => { allAvailability[d.id] = d.data(); });
+    renderCalendar();
+    if (document.getElementById('tab-resumen').style.display !== 'none') renderResumen();
+    checkCommonNotif();
+  });
+
+  // Listen to meetings
+  if (unsubMeetings) unsubMeetings();
+  unsubMeetings = onSnapshot(collection(db, 'meetings'), snap => {
+    meetings = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    renderCalendar();
+    if (document.getElementById('tab-reuniones').style.display !== 'none') renderReuniones();
+    if (document.getElementById('tab-resumen').style.display !== 'none') renderResumen();
+    checkReminders();
+  });
+
+  renderAvailability();
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+function addNotif(text) {
+  notifications.unshift({ text, time: new Date(), unread: true });
+  renderNotifBadge();
+}
+
+function renderNotifBadge() {
+  const n = notifications.filter(x=>x.unread).length;
+  const badge = document.getElementById('notif-badge');
+  badge.style.display = n > 0 ? 'flex' : 'none';
+  badge.textContent = n > 9 ? '9+' : n;
+}
+
+function renderNotifPanel() {
+  const list = document.getElementById('notif-list');
+  if (!notifications.length) { list.innerHTML='<div class="notif-empty">Sin notificaciones</div>'; return; }
+  list.innerHTML = notifications.map(n=>`
+    <div class="notif-item ${n.unread?'unread':''}">
+      <div>${n.text}</div>
+      <div class="notif-t">${n.time.getHours().toString().padStart(2,'0')}:${n.time.getMinutes().toString().padStart(2,'0')}</div>
+    </div>`).join('');
+}
+
+window.toggleNotif = () => {
+  notifOpen = !notifOpen;
+  document.getElementById('notif-panel').classList.toggle('open', notifOpen);
+  if (notifOpen) { notifications.forEach(n=>n.unread=false); renderNotifBadge(); renderNotifPanel(); }
+};
+
+window.clearNotifs = () => { notifications=[]; renderNotifBadge(); renderNotifPanel(); };
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('notif-btn').contains(e.target) &&
+      !document.getElementById('notif-panel').contains(e.target)) {
+    notifOpen = false;
+    document.getElementById('notif-panel').classList.remove('open');
+  }
+});
+
+function checkCommonNotif() {
+  if (!currentUser) return;
+  const today = new Date();
+  let count = 0;
+  for (let i=0; i<14; i++) {
+    const d = new Date(today); d.setDate(today.getDate()+i);
+    if (d.getDay()===0||d.getDay()===6) continue;
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    HOURS.forEach(h => {
+      const usersAvail = Object.values(allAvailability).filter(u => u[key]?.includes(h));
+      if (usersAvail.length >= 2) count++;
+    });
+  }
+  if (count > 0) addNotif(`Hay ${count} horario${count>1?'s':''} en común disponible${count>1?'s':''}. ¡Revisá "Horarios comunes"!`);
+}
+
+function checkReminders() {
+  if (!currentUser) return;
+  meetings.forEach(m => {
+    const [y,mo,d] = m.dateKey.split('-').map(Number);
+    const [hh] = m.hour.split(':').map(Number);
+    const meetDate = new Date(y, mo-1, d, hh, 0, 0);
+    const diffMin = Math.round((meetDate - new Date()) / 60000);
+    const remMin = parseInt(m.reminder || '30');
+    if (diffMin > 0 && diffMin <= remMin) {
+      addNotif(`Recordatorio: reunión en ${diffMin} min (${m.hour}, ${m.dayLabel}).`);
+    }
+  });
+}
+
+// ─── CALENDAR ────────────────────────────────────────────────────────────────
+window.changeMonth = d => { viewMonth.setMonth(viewMonth.getMonth()+d); renderCalendar(); };
+
+function renderCalendar() {
+  const g = document.getElementById('cal-grid');
+  const today = new Date();
+  const y = viewMonth.getFullYear(), m = viewMonth.getMonth();
+  document.getElementById('month-label').textContent = `${MONTHS_ES[m]} ${y}`;
+  g.innerHTML = '';
+  DAYS_ES.forEach(d => {
+    const h = document.createElement('div'); h.className='cal-day-hdr'; h.textContent=d; g.appendChild(h);
+  });
+  const firstDay = new Date(y,m,1).getDay();
+  for (let i=0; i<firstDay; i++) {
+    const e=document.createElement('div'); e.className='cal-day empty'; g.appendChild(e);
+  }
+  const dim = new Date(y,m+1,0).getDate();
+  for (let d=1; d<=dim; d++) {
+    const key = dateKey(y,m,d);
+    const cell = document.createElement('div'); cell.className='cal-day';
+    const isToday = today.getFullYear()===y && today.getMonth()===m && today.getDate()===d;
+    if (isToday) cell.classList.add('today');
+    if (meetings.some(mt=>mt.dateKey===key)) cell.classList.add('has-meeting');
+    const usersWithDay = Object.entries(allAvailability)
+      .filter(([uid,data]) => data[key]?.length > 0);
+    const colors = ['#2563eb','#16a34a','#dc2626','#ca8a04','#7c3aed'];
+    const dots = usersWithDay.map(([uid], i) =>
+      `<div class="dot" style="background:${colors[i%colors.length]}"></div>`).join('');
+    cell.innerHTML = `<span class="day-num">${d}</span><div class="dot-row">${dots}</div>`;
+    cell.onclick = () => {
+      document.querySelectorAll('.cal-day').forEach(c=>c.classList.remove('selected'));
+      cell.classList.add('selected');
+    };
+    g.appendChild(cell);
+  }
+}
+
+// ─── AVAILABILITY ────────────────────────────────────────────────────────────
+function renderAvailability() {
+  if (!currentUser) return;
+  const con = document.getElementById('slots-container');
+  const today = new Date();
+  const days = [];
+  for (let i=0; i<7; i++) {
+    const d = new Date(today); d.setDate(today.getDate()+i);
+    if (d.getDay()===0||d.getDay()===6) continue;
+    days.push({ key: dateKey(d.getFullYear(),d.getMonth(),d.getDate()), label: `${DAYS_ES[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}` });
+  }
+  document.getElementById('avail-title').textContent = `Disponibilidad — ${currentUser.displayName?.split(' ')[0]}`;
+  const myAvail = allAvailability[currentUser.uid] || {};
+  con.innerHTML = '';
+  days.forEach(({key, label}) => {
+    const selected = myAvail[key] || [];
+    const block = document.createElement('div'); block.className='day-block';
+    block.innerHTML = `<p class="day-block-label">${label}</p>`;
+    const grid = document.createElement('div'); grid.className='slots-grid';
+    HOURS.forEach(h => {
+      const isSel = selected.includes(h);
+      const slot = document.createElement('div');
+      slot.className = 'time-slot' + (isSel?' sel':'');
+      slot.innerHTML = `<span>${h}</span><div class="slot-dot"></div>`;
+      slot.dataset.key = key; slot.dataset.hour = h;
+      slot.onclick = function() {
+        this.classList.toggle('sel');
+        document.getElementById('saved-msg').style.display='none';
+      };
+      grid.appendChild(slot);
+    });
+    block.appendChild(grid);
+    con.appendChild(block);
+  });
+}
+
+window.saveAvailability = async () => {
+  if (!currentUser) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  const data = {};
+  document.querySelectorAll('.time-slot').forEach(slot => {
+    const key = slot.dataset.key, h = slot.dataset.hour;
+    if (!data[key]) data[key] = [];
+    if (slot.classList.contains('sel')) data[key].push(h);
+  });
+  await setDoc(doc(db, 'availability', currentUser.uid), {
+    ...data, email: currentUser.email, name: currentUser.displayName
+  });
+  btn.disabled = false; btn.textContent = 'Guardar disponibilidad';
+  document.getElementById('saved-msg').style.display = 'block';
+};
+
+// ─── RESUMEN ─────────────────────────────────────────────────────────────────
+function renderResumen() {
+  const con = document.getElementById('resumen-content');
+  con.innerHTML = '';
+  const today = new Date(); let hasAny = false;
+  const colors = ['#2563eb','#16a34a','#dc2626','#ca8a04','#7c3aed'];
+  const bgs = ['#eff4ff','#f0fdf4','#fef2f2','#fefce8','#f5f3ff'];
+  const userList = Object.entries(allAvailability);
+
+  for (let i=0; i<14; i++) {
+    const d = new Date(today); d.setDate(today.getDate()+i);
+    if (d.getDay()===0||d.getDay()===6) continue;
+    const key = dateKey(d.getFullYear(),d.getMonth(),d.getDate());
+    const dayLabel = `${DAYS_ES[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+    const slotMap = {};
+    userList.forEach(([uid,data], idx) => {
+      (data[key]||[]).forEach(h => {
+        if (!slotMap[h]) slotMap[h]=[];
+        slotMap[h].push({uid, name: data.name||data.email||'Usuario', idx});
+      });
+    });
+    const common = Object.entries(slotMap).filter(([h,us])=>us.length>=2).sort((a,b)=>a[0].localeCompare(b[0]));
+    if (!common.length) continue;
+    hasAny = true;
+    const card = document.createElement('div'); card.className='resumen-card';
+    card.innerHTML=`<p class="resumen-card-title">${dayLabel}</p>`;
+    common.forEach(([h,users]) => {
+      const allIn = users.length >= userList.length && userList.length >= 2;
+      const booked = meetings.some(m=>m.dateKey===key&&m.hour===h);
+      const row = document.createElement('div'); row.className='slot-row';
+      const initials = users.map(u => (u.name||'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase());
+      row.innerHTML = `
+        <span class="slot-time">${h}</span>
+        <div class="avatars">${users.map((u,i)=>`<div class="av" style="background:${bgs[u.idx%5]};color:${colors[u.idx%5]}" title="${u.name}">${initials[i]}</div>`).join('')}</div>
+        ${allIn&&userList.length>=2?'<span class="badge-all">Todos disponibles</span>':''}
+        <button class="agenda-btn ${booked?'booked':''}" onclick="bookMeeting('${key}','${h}','${dayLabel}',this)">
+          ${booked?'✓ Agendado':'+ Agendar'}
+        </button>`;
+      card.appendChild(row);
+    });
+    con.appendChild(card);
+  }
+  if (!hasAny) con.innerHTML='<div class="empty-state">Cargá disponibilidad primero.<br>Cada persona entra con su cuenta y marca sus horarios.</div>';
+}
+
+// ─── MEETINGS ────────────────────────────────────────────────────────────────
+window.bookMeeting = async (key, hour, dayLabel, btn) => {
+  if (!currentUser) return;
+  if (btn.classList.contains('booked')) return;
+  const usersAvail = Object.entries(allAvailability)
+    .filter(([uid,data])=>data[key]?.includes(hour))
+    .map(([uid,data])=>({uid, name:data.name||data.email||'Usuario', email:data.email}));
+  await addDoc(collection(db, 'meetings'), {
+    dateKey: key, hour, dayLabel,
+    attendees: usersAvail,
+    reminder: '30',
+    title: 'Reunión de equipo',
+    createdBy: currentUser.uid
+  });
+  addNotif(`Reunión agendada: ${dayLabel} a las ${hour}.`);
+};
+
+window.cancelMeeting = async (id) => {
+  await deleteDoc(doc(db, 'meetings', id));
+  addNotif('Reunión cancelada.');
+};
+
+window.updateReminder = async (id, val) => {
+  await updateDoc(doc(db, 'meetings', id), { reminder: val });
+  addNotif(`Recordatorio actualizado.`);
+};
+
+function renderReuniones() {
+  const con = document.getElementById('reuniones-content');
+  if (!currentUser) { con.innerHTML=''; return; }
+  const colors = ['#2563eb','#16a34a','#dc2626','#ca8a04','#7c3aed'];
+  const bgs = ['#eff4ff','#f0fdf4','#fef2f2','#fefce8','#f5f3ff'];
+  const myMeetings = meetings.filter(m=>m.attendees?.some(a=>a.uid===currentUser.uid)||m.createdBy===currentUser.uid);
+  if (!myMeetings.length) {
+    con.innerHTML='<div class="empty-state">No tenés reuniones agendadas.<br>Agendá desde "Horarios comunes".</div>'; return;
+  }
+  con.innerHTML='';
+  myMeetings.forEach(m => {
+    const card = document.createElement('div'); card.className='meeting-card';
+    const attendeeHTML = (m.attendees||[]).map((a,i)=>{
+      const initials=(a.name||'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      return `<div class="attendee-chip"><div class="av" style="background:${bgs[i%5]};color:${colors[i%5]}">${initials}</div>${a.name?.split(' ')[0]||a.email}</div>`;
+    }).join('');
+    card.innerHTML=`
+      <div class="meeting-top">
+        <div>
+          <p class="meeting-title">${m.title}</p>
+          <p class="meeting-meta">${m.dayLabel} · ${m.hour}</p>
+        </div>
+        <button class="cancel-btn" onclick="cancelMeeting('${m.id}')">Cancelar</button>
+      </div>
+      <div class="meeting-attendees">${attendeeHTML}</div>
+      <div class="reminder-row">
+        <span class="reminder-label">Recordarme</span>
+        <select class="reminder-select" onchange="updateReminder('${m.id}',this.value)">
+          <option value="15" ${m.reminder==='15'?'selected':''}>15 min antes</option>
+          <option value="30" ${m.reminder==='30'?'selected':''}>30 min antes</option>
+          <option value="60" ${m.reminder==='60'?'selected':''}>1 hora antes</option>
+          <option value="1440" ${m.reminder==='1440'?'selected':''}>1 día antes</option>
+        </select>
+      </div>`;
+    con.appendChild(card);
+  });
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+window.switchTab = (name, el) => {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['calendario','disponibilidad','resumen','reuniones'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===name?'block':'none';
+  });
+  if (name==='resumen') renderResumen();
+  if (name==='reuniones') renderReuniones();
+  if (name==='disponibilidad') renderAvailability();
+};
+
+setInterval(checkReminders, 60000);
+</script>
+</body>
+</html>
